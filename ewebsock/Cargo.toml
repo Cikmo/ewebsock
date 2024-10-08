@@ -21,7 +21,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 workspace = true
 
 [features]
-default = []
+default = ["tokio"]
 
 tls = ["tungstenite/rustls-tls-webpki-roots"]
 

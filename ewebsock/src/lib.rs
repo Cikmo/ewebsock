@@ -16,32 +16,13 @@
 
 #![warn(missing_docs)] // let's keep ewebsock well-documented
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "tokio"))]
-mod native_tungstenite;
-
 use std::ops::ControlFlow;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "tokio"))]
-pub use native_tungstenite::*;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "tokio")]
 mod native_tungstenite_tokio;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "tokio")]
 pub use native_tungstenite_tokio::*;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod tungstenite_common;
-
-#[cfg(target_arch = "wasm32")]
-mod web;
-
-#[cfg(target_arch = "wasm32")]
-pub use web::*;
 
 // ----------------------------------------------------------------------------
 
@@ -81,39 +62,7 @@ pub enum WsEvent {
     Closed,
 }
 
-/// Receiver for incoming [`WsEvent`]s.
-pub struct WsReceiver {
-    rx: std::sync::mpsc::Receiver<WsEvent>,
-}
 
-impl WsReceiver {
-    /// Returns a receiver and an event-handler that can be passed to `crate::ws_connect`.
-    pub fn new() -> (Self, EventHandler) {
-        Self::new_with_callback(|| {})
-    }
-
-    /// The given callback will be called on each new message.
-    ///
-    /// This can be used to wake up the UI thread.
-    pub fn new_with_callback(wake_up: impl Fn() + Send + Sync + 'static) -> (Self, EventHandler) {
-        let (tx, rx) = std::sync::mpsc::channel();
-        let on_event = Box::new(move |event| {
-            wake_up(); // wake up UI thread
-            if tx.send(event).is_ok() {
-                ControlFlow::Continue(())
-            } else {
-                ControlFlow::Break(())
-            }
-        });
-        let ws_receiver = Self { rx };
-        (ws_receiver, on_event)
-    }
-
-    /// Try receiving a new event without blocking.
-    pub fn try_recv(&self) -> Option<WsEvent> {
-        self.rx.try_recv().ok()
-    }
-}
 
 /// An error.
 pub type Error = String;

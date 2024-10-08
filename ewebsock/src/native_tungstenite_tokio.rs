@@ -42,6 +42,40 @@ impl WsSender {
     }
 }
 
+/// Receiver for incoming [`WsEvent`]s.
+pub struct WsReceiver {
+    rx: tokio::sync::mpsc::UnboundedReceiver<WsEvent>,
+}
+
+impl WsReceiver {
+    /// Returns a receiver and an event-handler that can be passed to `crate::ws_connect`.
+    pub fn new() -> (Self, EventHandler) {
+        Self::new_with_callback(|| {})
+    }
+
+    /// The given callback will be called on each new message.
+    ///
+    /// This can be used to wake up the UI thread.
+    pub fn new_with_callback(wake_up: impl Fn() + Send + Sync + 'static) -> (Self, EventHandler) {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let on_event = Box::new(move |event| {
+            wake_up(); // wake up UI thread
+            if tx.send(event).is_ok() {
+                ControlFlow::Continue(())
+            } else {
+                ControlFlow::Break(())
+            }
+        });
+        let ws_receiver = Self { rx };
+        (ws_receiver, on_event)
+    }
+
+    /// Try receiving a new event without blocking.
+    pub fn try_recv(&mut self) -> Option<WsEvent> {
+        self.rx.try_recv().ok()
+    }
+}
+
 async fn ws_connect_async(
     url: String,
     options: Options,
